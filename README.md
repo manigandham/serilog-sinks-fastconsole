@@ -6,5 +6,11 @@ The default console sink uses heavy inefficient code and writes with Console.Wri
 
 This sink supports both plaintext and JSON output to the console but it **does not support themes and colors**.
 
+## Getting started
 
+#### Install [package from Nuget](https://www.nuget.org/packages/Serilog.Sinks.FastConsole/):
+
+```
+dotnet add package Serilog.Sinks.FastConsole
+```
 
