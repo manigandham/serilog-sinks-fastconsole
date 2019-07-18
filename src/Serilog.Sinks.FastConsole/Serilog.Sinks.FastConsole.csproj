@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.5</TargetFramework>
+    <LangVersion>8</LangVersion>
+    <Authors>Mani Gandham</Authors>
+    <Description>Serilog sink that writes to console, focused on high-performance non-blocking output.</Description>
+    <PackageIconUrl>https://serilog.net/images/serilog-sink-nuget.png</PackageIconUrl>
+    <PackageProjectUrl>https://github.com/manigandham/serilog-sinks-fastconsole</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/manigandham/serilog-sinks-fastconsole</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>serilog; sink; console;</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="2.8.0" />
+    <PackageReference Include="System.Threading.Channels" Version="4.5.0" />
+  </ItemGroup>
+
+</Project>
