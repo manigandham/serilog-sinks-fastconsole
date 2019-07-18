@@ -77,11 +77,14 @@ namespace Serilog.Sinks.FastConsole
             else
             {
                 writer.Write("{");
+
                 writer.Write("\"timestamp\":\"");
                 writer.Write(e.Timestamp.ToString("o"));
 
-                writer.Write("\",\"message\":");
+                writer.Write("\",\"level\":\"");
+                writer.Write(WriteLogLevel(e.Level));
 
+                writer.Write("\",\"message\":");
                 var message = e.MessageTemplate.Render(e.Properties);
                 JsonValueFormatter.WriteQuotedJsonString(message, writer);
 
@@ -109,9 +112,6 @@ namespace Serilog.Sinks.FastConsole
 
                     writer.Write('}');
                 }
-
-                writer.Write("\",\"level\":\"");
-                writer.Write(WriteLogLevel(e.Level));
 
                 writer.Write('}');
                 writer.WriteLine();
