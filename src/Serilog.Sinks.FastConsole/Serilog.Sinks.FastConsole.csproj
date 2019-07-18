@@ -11,6 +11,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>serilog; sink; console;</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
