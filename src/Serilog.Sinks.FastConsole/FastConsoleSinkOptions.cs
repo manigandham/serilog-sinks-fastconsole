@@ -7,7 +7,7 @@ namespace Serilog.Sinks.FastConsole
     public class FastConsoleSinkOptions
     {
         /// <summary>
-        /// Writes log event as a JSON object with { timestamp, message, level } properties.
+        /// Writes log event as a JSON object with { timestamp, level, message, properties } properties.
         /// Default is true.
         /// </summary>
         public bool UseJson { get; set; } = true;
