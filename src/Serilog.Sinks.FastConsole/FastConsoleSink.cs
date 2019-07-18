@@ -64,13 +64,14 @@ namespace Serilog.Sinks.FastConsole
             else
             {
                 writer.Write(e.MessageTemplate.Render(e.Properties));
-                writer.Write(Environment.NewLine);
+                writer.WriteLine();
             }
         }
 
         private void RenderJson(LogEvent e, StringWriter writer)
         {
-            writer.Write("{\"timestamp\":\"");
+            writer.Write("{");
+            writer.Write("\"timestamp\":\"");
             writer.Write(e.Timestamp.ToString("o"));
 
             writer.Write("\",\"message\":");
@@ -105,6 +106,8 @@ namespace Serilog.Sinks.FastConsole
 
             writer.Write("\",\"level\":\"");
             writer.Write(WriteLogLevel(e.Level));
+
+            _options.CustomJsonWriter?.Invoke(e, writer);
 
             writer.Write('}');
             writer.WriteLine();
