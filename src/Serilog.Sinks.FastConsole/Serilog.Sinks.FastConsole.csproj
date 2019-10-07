@@ -1,19 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.5</TargetFramework>
+    <TargetFrameworks>netstandard1.5;netstandard2.0</TargetFrameworks>
     <LangVersion>8</LangVersion>
-    <Authors>Mani Gandham</Authors>
     <Description>Serilog sink that writes to console, focused on high-performance non-blocking output.</Description>
-    <PackageIconUrl>https://serilog.net/images/serilog-sink-nuget.png</PackageIconUrl>
+    <Authors>Mani Gandham</Authors>
+    <PackageLicense>MIT</PackageLicense>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>serilog-sink-nuget.png</PackageIcon>
+    <PackageTags>serilog; sink; console;</PackageTags>
     <PackageProjectUrl>https://github.com/manigandham/serilog-sinks-fastconsole</PackageProjectUrl>
     <RepositoryUrl>https://github.com/manigandham/serilog-sinks-fastconsole</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>serilog; sink; console;</PackageTags>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Version>1.3.0</Version>
+    <Version>1.3.1</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="serilog-sink-nuget.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Serilog" Version="2.8.0" />

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.1
+- Added `netstandard2.0` to improve dependency graph in newer solutions.
+
 ## 1.3.0
 - Fix bug with default JSON object writer ending quote.
 
