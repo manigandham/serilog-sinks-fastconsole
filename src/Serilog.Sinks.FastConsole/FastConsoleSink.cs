@@ -34,23 +34,23 @@ namespace Serilog.Sinks.FastConsole
         private async Task WriteToConsoleStream()
         {
             while (await WriteQueue.Reader.WaitToReadAsync())
-                while (WriteQueue.Reader.TryRead(out var logEvent))
+            while (WriteQueue.Reader.TryRead(out var logEvent))
+            {
+                if (logEvent != null)
                 {
-                    if (logEvent != null)
-                    {
-                        // console output is a IO stream
-                        // format and write event to in-memory buffer and then flush to console async
-                        // do not use the locking textwriter from console.out used by console.writeline
+                    // console output is a IO stream
+                    // format and write event to in-memory buffer and then flush to console async
+                    // do not use the locking textwriter from console.out used by console.writeline
 
-                        if (_options.UseJson)
-                            RenderJson(logEvent, BufferWriter);
-                        else
-                            RenderText(logEvent, BufferWriter);
+                    if (_options.UseJson)
+                        RenderJson(logEvent, BufferWriter);
+                    else
+                        RenderText(logEvent, BufferWriter);
 
-                        await ConsoleWriter.WriteAsync(BufferWriter.ToString());
-                        BufferWriter.GetStringBuilder().Clear();
-                    }
+                    await ConsoleWriter.WriteAsync(BufferWriter.ToString());
+                    BufferWriter.GetStringBuilder().Clear();
                 }
+            }
 
             await ConsoleWriter.FlushAsync();
         }
@@ -118,26 +118,45 @@ namespace Serilog.Sinks.FastConsole
             }
         }
 
-        private static string WriteLogLevel(LogEventLevel level)
+        private static string WriteLogLevel(LogEventLevel level) => level switch
         {
-            switch (level)
+            LogEventLevel.Verbose => "VERBOSE",
+            LogEventLevel.Debug => "DEBUG",
+            LogEventLevel.Information => "INFO",
+            LogEventLevel.Warning => "WARNING",
+            LogEventLevel.Error => "ERROR",
+            LogEventLevel.Fatal => "FATAL",
+            _ => "INFO",
+        };
+
+        #region IDisposable Support
+
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
             {
-                case LogEventLevel.Verbose: return "VERBOSE";
-                case LogEventLevel.Debug: return "DEBUG";
-                case LogEventLevel.Information: return "INFO";
-                case LogEventLevel.Warning: return "WARNING";
-                case LogEventLevel.Error: return "ERROR";
-                case LogEventLevel.Fatal: return "FATAL";
-                default: return "INFO";
+                if (disposing)
+                {
+                    // close write queue and wait until items are drained
+                    // then wait for all console output to be flushed
+                    WriteQueue.Writer.Complete();
+                    WriteQueueWorker.GetAwaiter().GetResult();
+
+                    BufferWriter.Dispose();
+                    ConsoleWriter.Dispose();
+                }
+
+                disposedValue = true;
             }
         }
 
         public void Dispose()
         {
-            // close write queue and wait until items are drained
-            // then wait for all console output to be flushed
-            WriteQueue.Writer.Complete();
-            WriteQueueWorker.GetAwaiter().GetResult();
+            Dispose(true);
         }
+
+        #endregion
     }
 }
