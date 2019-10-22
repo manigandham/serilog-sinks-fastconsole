@@ -1,7 +1,7 @@
 # Changelog
 
 ## 1.3.1
-- Added `netstandard2.0` to improve dependency graph in newer solutions.
+- Added `netstandard2.0` to improve dependency graph in newer solutions. See guidance at https://docs.microsoft.com/en-us/dotnet/standard/library-guidance/cross-platform-targeting
 
 ## 1.3.0
 - Fix bug with default JSON object writer ending quote.
