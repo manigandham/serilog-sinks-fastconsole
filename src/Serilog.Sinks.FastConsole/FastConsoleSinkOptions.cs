@@ -7,6 +7,12 @@ namespace Serilog.Sinks.FastConsole
     public class FastConsoleSinkOptions
     {
         /// <summary>
+        /// Set max limit for the number of log entries queued in memory. Used to provide backpressure and avoid out-of-memory issues for high-volume logging.
+        /// Default is null for unbounded queue.
+        /// </summary>
+        public int? QueueLimit { get; internal set; }
+
+        /// <summary>
         /// Writes log event as a JSON object with { timestamp, level, message, properties } properties.
         /// Default is true.
         /// </summary>

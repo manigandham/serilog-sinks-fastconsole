@@ -14,7 +14,7 @@ namespace Serilog.Sinks.FastConsole
         private readonly JsonValueFormatter ValueFormatter = new JsonValueFormatter();
         private readonly StreamWriter ConsoleWriter = new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
         private readonly StringWriter BufferWriter = new StringWriter();
-        private readonly Channel<LogEvent> WriteQueue = Channel.CreateUnbounded<LogEvent>(new UnboundedChannelOptions { SingleReader = true });
+        private readonly Channel<LogEvent> WriteQueue;
         private readonly Task WriteQueueWorker;
 
         private readonly FastConsoleSinkOptions _options;
@@ -22,8 +22,13 @@ namespace Serilog.Sinks.FastConsole
 
         public FastConsoleSink(FastConsoleSinkOptions options, MessageTemplateTextFormatter messageTemplateTextFormatter)
         {
-            this._options = options;
-            this._messageTemplateTextFormatter = messageTemplateTextFormatter;
+            _options = options;
+            _messageTemplateTextFormatter = messageTemplateTextFormatter;
+
+            if (options.QueueLimit > 0)
+                WriteQueue = Channel.CreateBounded<LogEvent>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true });
+            else
+                WriteQueue = Channel.CreateUnbounded<LogEvent>(new UnboundedChannelOptions { SingleReader = true });
 
             WriteQueueWorker = WriteToConsoleStream();
         }
