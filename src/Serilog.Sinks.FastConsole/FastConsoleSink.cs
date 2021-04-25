@@ -11,9 +11,9 @@ namespace Serilog.Sinks.FastConsole
 {
     public class FastConsoleSink : ILogEventSink, IDisposable
     {
-        private readonly JsonValueFormatter ValueFormatter = new JsonValueFormatter();
-        private readonly StreamWriter ConsoleWriter = new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
-        private readonly StringWriter BufferWriter = new StringWriter();
+        private readonly JsonValueFormatter ValueFormatter = new();
+        private readonly StreamWriter ConsoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
+        private readonly StringWriter BufferWriter = new();
         private readonly Channel<LogEvent> WriteQueue;
         private readonly Task WriteQueueWorker;
 
@@ -25,10 +25,9 @@ namespace Serilog.Sinks.FastConsole
             _options = options;
             _messageTemplateTextFormatter = messageTemplateTextFormatter;
 
-            if (options.QueueLimit > 0)
-                WriteQueue = Channel.CreateBounded<LogEvent>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true });
-            else
-                WriteQueue = Channel.CreateUnbounded<LogEvent>(new UnboundedChannelOptions { SingleReader = true });
+            WriteQueue = options.QueueLimit > 0
+                ? Channel.CreateBounded<LogEvent>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true })
+                : Channel.CreateUnbounded<LogEvent>(new UnboundedChannelOptions { SingleReader = true });
 
             WriteQueueWorker = WriteToConsoleStream();
         }
@@ -41,20 +40,19 @@ namespace Serilog.Sinks.FastConsole
             while (await WriteQueue.Reader.WaitToReadAsync())
             while (WriteQueue.Reader.TryRead(out var logEvent))
             {
-                if (logEvent != null)
-                {
-                    // console output is a IO stream
-                    // format and write event to in-memory buffer and then flush to console async
-                    // do not use the locking textwriter from console.out used by console.writeline
+                if (logEvent == null) continue;
 
-                    if (_options.UseJson)
-                        RenderJson(logEvent, BufferWriter);
-                    else
-                        RenderText(logEvent, BufferWriter);
+                // console output is an IO stream
+                // format and write event to in-memory buffer and then flush to console async
+                // do not use the locking textwriter from console.out used by console.writeline
 
-                    await ConsoleWriter.WriteAsync(BufferWriter.ToString());
-                    BufferWriter.GetStringBuilder().Clear();
-                }
+                if (_options.UseJson)
+                    RenderJson(logEvent, BufferWriter);
+                else
+                    RenderText(logEvent, BufferWriter);
+
+                await ConsoleWriter.WriteAsync(BufferWriter.ToString());
+                BufferWriter.GetStringBuilder().Clear();
             }
 
             await ConsoleWriter.FlushAsync();
@@ -77,7 +75,7 @@ namespace Serilog.Sinks.FastConsole
         {
             if (_options.CustomJsonWriter != null)
             {
-                _options.CustomJsonWriter.Invoke(e, writer);
+                _options.CustomJsonWriter(e, writer);
             }
             else
             {
