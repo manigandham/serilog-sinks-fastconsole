@@ -1,5 +1,10 @@
 # Changelog
 
+Full readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
+
+## 1.4.1
+- Added `ConfigureAwait(false)` to avoid SynchronizationContext when used in .NET Framework.
+
 ## 1.4.0
 - Updated target frameworks to `netstandard2.0`, `netstandard2.1`, `net5.0`.
 - Added `restrictedToMinimumLevel` and `loggingLevelSwitch` (standard Serilog) options to sink config.
