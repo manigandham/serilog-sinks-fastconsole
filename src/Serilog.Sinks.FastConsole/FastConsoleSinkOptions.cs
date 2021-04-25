@@ -22,6 +22,6 @@ namespace Serilog.Sinks.FastConsole
         /// Custom write method for controlling the JSON object output. You must write the entire object.
         /// Default is null, which will use built-in formatter.
         /// </summary>
-        public Action<LogEvent, TextWriter> CustomJsonWriter { get; set; }
+        public Action<LogEvent, TextWriter>? CustomJsonWriter { get; set; }
     }
 }

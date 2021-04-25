@@ -8,8 +8,8 @@ namespace Serilog.Sinks.FastConsole
     {
         public static LoggerConfiguration FastConsole(
             this LoggerSinkConfiguration loggerConfiguration,
-            FastConsoleSinkOptions sinkOptions = null,
-            string outputTemplate = null)
+            FastConsoleSinkOptions? sinkOptions = null,
+            string? outputTemplate = null)
         {
             sinkOptions ??= new FastConsoleSinkOptions();
 

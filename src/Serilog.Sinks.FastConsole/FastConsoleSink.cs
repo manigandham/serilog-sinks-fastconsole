@@ -18,9 +18,9 @@ namespace Serilog.Sinks.FastConsole
         private readonly Task WriteQueueWorker;
 
         private readonly FastConsoleSinkOptions _options;
-        private readonly MessageTemplateTextFormatter _messageTemplateTextFormatter;
+        private readonly MessageTemplateTextFormatter? _messageTemplateTextFormatter;
 
-        public FastConsoleSink(FastConsoleSinkOptions options, MessageTemplateTextFormatter messageTemplateTextFormatter)
+        public FastConsoleSink(FastConsoleSinkOptions options, MessageTemplateTextFormatter? messageTemplateTextFormatter)
         {
             _options = options;
             _messageTemplateTextFormatter = messageTemplateTextFormatter;
