@@ -29,7 +29,7 @@ namespace Serilog.Sinks.FastConsole
                 ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true })
                 : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
 
-            _writeQueueWorker = WriteToConsoleStream();
+            _writeQueueWorker = Task.Run(WriteToConsoleStream);
         }
 
         // logs are immediately queued to channel
@@ -40,7 +40,7 @@ namespace Serilog.Sinks.FastConsole
             // cache reference to stringbuilder inside writer
             var sb = _bufferWriter.GetStringBuilder();
 
-            while (await _writeQueue.Reader.WaitToReadAsync())
+            while (await _writeQueue.Reader.WaitToReadAsync().ConfigureAwait(false))
             while (_writeQueue.Reader.TryRead(out var logEvent))
             {
                 if (logEvent == null) continue;
@@ -57,16 +57,16 @@ namespace Serilog.Sinks.FastConsole
 #if NET5_0
                 // use stringbuilder internal buffers directly without allocating a new string
                 foreach (var chunk in sb.GetChunks())
-                    await _consoleWriter.WriteAsync(chunk);
+                    await _consoleWriter.WriteAsync(chunk).ConfigureAwait(false);
 #else
-                // fallback to creating string output 
-                await _consoleWriter.WriteAsync(sb.ToString());
+                // fallback to creating string output
+                await _consoleWriter.WriteAsync(sb.ToString()).ConfigureAwait(false);
 #endif
 
                 sb.Clear();
             }
 
-            await _consoleWriter.FlushAsync();
+            await _consoleWriter.FlushAsync().ConfigureAwait(false);
         }
 
         private void RenderText(LogEvent e, StringWriter writer)
@@ -159,8 +159,7 @@ namespace Serilog.Sinks.FastConsole
                 // close write queue and wait until items are drained
                 // then wait for all console output to be flushed
                 _writeQueue.Writer.Complete();
-                _writeQueueWorker.Wait();
-                _writeQueueWorker.Dispose();
+                _writeQueueWorker.GetAwaiter().GetResult();
 
                 _bufferWriter.Dispose();
                 _consoleWriter.Dispose();
