@@ -11,11 +11,11 @@ namespace Serilog.Sinks.FastConsole
 {
     public class FastConsoleSink : ILogEventSink, IDisposable
     {
-        private readonly JsonValueFormatter ValueFormatter = new();
-        private readonly StreamWriter ConsoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
-        private readonly StringWriter BufferWriter = new();
-        private readonly Channel<LogEvent?> WriteQueue;
-        private readonly Task WriteQueueWorker;
+        private readonly JsonValueFormatter _valueFormatter = new();
+        private readonly StreamWriter _consoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
+        private readonly StringWriter _bufferWriter = new();
+        private readonly Channel<LogEvent?> _writeQueue;
+        private readonly Task _writeQueueWorker;
 
         private readonly FastConsoleSinkOptions _options;
         private readonly MessageTemplateTextFormatter? _messageTemplateTextFormatter;
@@ -25,20 +25,23 @@ namespace Serilog.Sinks.FastConsole
             _options = options;
             _messageTemplateTextFormatter = messageTemplateTextFormatter;
 
-            WriteQueue = options.QueueLimit > 0
+            _writeQueue = options.QueueLimit > 0
                 ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true })
                 : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
 
-            WriteQueueWorker = WriteToConsoleStream();
+            _writeQueueWorker = WriteToConsoleStream();
         }
 
         // logs are immediately queued to channel
-        public void Emit(LogEvent logEvent) => WriteQueue.Writer.TryWrite(logEvent);
+        public void Emit(LogEvent logEvent) => _writeQueue.Writer.TryWrite(logEvent);
 
         private async Task WriteToConsoleStream()
         {
-            while (await WriteQueue.Reader.WaitToReadAsync())
-            while (WriteQueue.Reader.TryRead(out var logEvent))
+            // cache reference to stringbuilder inside writer
+            var sb = _bufferWriter.GetStringBuilder();
+
+            while (await _writeQueue.Reader.WaitToReadAsync())
+            while (_writeQueue.Reader.TryRead(out var logEvent))
             {
                 if (logEvent == null) continue;
 
@@ -47,15 +50,23 @@ namespace Serilog.Sinks.FastConsole
                 // do not use the locking textwriter from console.out used by console.writeline
 
                 if (_options.UseJson)
-                    RenderJson(logEvent, BufferWriter);
+                    RenderJson(logEvent, _bufferWriter);
                 else
-                    RenderText(logEvent, BufferWriter);
+                    RenderText(logEvent, _bufferWriter);
 
-                await ConsoleWriter.WriteAsync(BufferWriter.ToString());
-                BufferWriter.GetStringBuilder().Clear();
+#if NET5_0
+                // use stringbuilder internal buffers directly without allocating a new string
+                foreach (var chunk in sb.GetChunks())
+                    await _consoleWriter.WriteAsync(chunk);
+#else
+                // fallback to creating string output 
+                await _consoleWriter.WriteAsync(sb.ToString());
+#endif
+
+                sb.Clear();
             }
 
-            await ConsoleWriter.FlushAsync();
+            await _consoleWriter.FlushAsync();
         }
 
         private void RenderText(LogEvent e, StringWriter writer)
@@ -110,7 +121,7 @@ namespace Serilog.Sinks.FastConsole
                         JsonValueFormatter.WriteQuotedJsonString(kvp.Key, writer);
                         writer.Write(':');
 
-                        ValueFormatter.Format(kvp.Value, writer);
+                        _valueFormatter.Format(kvp.Value, writer);
                     }
 
                     writer.Write('}');
@@ -144,11 +155,11 @@ namespace Serilog.Sinks.FastConsole
                 {
                     // close write queue and wait until items are drained
                     // then wait for all console output to be flushed
-                    WriteQueue.Writer.Complete();
-                    WriteQueueWorker.GetAwaiter().GetResult();
+                    _writeQueue.Writer.Complete();
+                    _writeQueueWorker.GetAwaiter().GetResult();
 
-                    BufferWriter.Dispose();
-                    ConsoleWriter.Dispose();
+                    _bufferWriter.Dispose();
+                    _consoleWriter.Dispose();
                 }
 
                 disposedValue = true;
