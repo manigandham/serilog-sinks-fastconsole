@@ -1,8 +1,8 @@
 # Serilog.Sinks.FastConsole
 
-Serilog sink that writes to console, focused on high-performance non-blocking output. This sink supports both plaintext and JSON output to the console but it **does not support themes and colors**. 
+Serilog sink that writes to console with high-performance non-blocking output. Supports plaintext and JSON output but **does not support themes and colors**.
 
-The default console sink uses heavy inefficient code and writes with Console.WriteLine which introduces a global lock for each line. This sink uses a [background channel](https://ndportmann.com/system-threading-channels/) instead with a single text buffer and async writes to remove all blocking and contention to the console output stream. It also implements IDiposable so you can call `Log.CloseAndFlush();` to ensure all lines are flushed.
+This sink uses a [background channel](https://ndportmann.com/system-threading-channels/) with a single text buffer and async writes to remove all blocking and lock contention to the console output stream. It also implements `IDiposable` so that calling `Log.CloseAndFlush()` will ensure all lines are flushed. Recommended for high-volume logging where console logging is captured and sent elsewhere, for example this library was originally created for a large fleet of API servers running in Kubernetes and logging hundreds of large JSON objects every second.   
 
 Release notes here: [CHANGELOG.md](CHANGELOG.md)
 
