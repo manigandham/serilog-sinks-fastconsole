@@ -1,5 +1,7 @@
 ﻿using System;
 using Serilog.Configuration;
+using Serilog.Core;
+using Serilog.Events;
 using Serilog.Formatting.Display;
 
 namespace Serilog.Sinks.FastConsole
@@ -9,14 +11,16 @@ namespace Serilog.Sinks.FastConsole
         public static LoggerConfiguration FastConsole(
             this LoggerSinkConfiguration loggerConfiguration,
             FastConsoleSinkOptions? sinkOptions = null,
-            string? outputTemplate = null)
+            string? outputTemplate = null,
+            LogEventLevel restrictedToMinimumLevel = LevelAlias.Minimum,
+            LoggingLevelSwitch? loggingLevelSwitch = null)
         {
             sinkOptions ??= new FastConsoleSinkOptions();
-
             var messageTemplateTextFormatter = !String.IsNullOrWhiteSpace(outputTemplate) ? new MessageTemplateTextFormatter(outputTemplate) : null;
+
             var sink = new FastConsoleSink(sinkOptions, messageTemplateTextFormatter);
 
-            return loggerConfiguration.Sink(sink);
+            return loggerConfiguration.Sink(sink, restrictedToMinimumLevel, loggingLevelSwitch);
         }
     }
 }
