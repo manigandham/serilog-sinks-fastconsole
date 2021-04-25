@@ -11,7 +11,6 @@ namespace Serilog.Sinks.FastConsole
 {
     public class FastConsoleSink : ILogEventSink, IDisposable
     {
-        private readonly JsonValueFormatter _valueFormatter = new();
         private readonly StreamWriter _consoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
         private readonly StringWriter _bufferWriter = new();
         private readonly Channel<LogEvent?> _writeQueue;
@@ -19,6 +18,7 @@ namespace Serilog.Sinks.FastConsole
 
         private readonly FastConsoleSinkOptions _options;
         private readonly MessageTemplateTextFormatter? _messageTemplateTextFormatter;
+        private readonly JsonValueFormatter _valueFormatter = new();
 
         public FastConsoleSink(FastConsoleSinkOptions options, MessageTemplateTextFormatter? messageTemplateTextFormatter)
         {
@@ -145,30 +145,28 @@ namespace Serilog.Sinks.FastConsole
 
         #region IDisposable Support
 
-        private bool disposedValue = false; // To detect redundant calls
+        private bool _disposed = false; // to detect redundant calls
+
+        public void Dispose() => Dispose(true);
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (_disposed)
+                return;
+
+            if (disposing)
             {
-                if (disposing)
-                {
-                    // close write queue and wait until items are drained
-                    // then wait for all console output to be flushed
-                    _writeQueue.Writer.Complete();
-                    _writeQueueWorker.GetAwaiter().GetResult();
+                // close write queue and wait until items are drained
+                // then wait for all console output to be flushed
+                _writeQueue.Writer.Complete();
+                _writeQueueWorker.Wait();
+                _writeQueueWorker.Dispose();
 
-                    _bufferWriter.Dispose();
-                    _consoleWriter.Dispose();
-                }
-
-                disposedValue = true;
+                _bufferWriter.Dispose();
+                _consoleWriter.Dispose();
             }
-        }
 
-        public void Dispose()
-        {
-            Dispose(true);
+            _disposed = true;
         }
 
         #endregion
