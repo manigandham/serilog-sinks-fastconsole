@@ -2,6 +2,10 @@
 
 Full readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
 
+## 1.5.0
+- Sink updated to use `ITextFormatter` for any custom formatting, in addition to basic plaintext and JSON formatting included by default.
+- `CustomJsonWriter` (of type `Action<LogEvent, TextWriter>`) is now obsolete. Provide an implementation of `ITextFormatter` instead.
+
 ## 1.4.1
 - Added `ConfigureAwait(false)` to avoid SynchronizationContext when used in .NET Framework.
 

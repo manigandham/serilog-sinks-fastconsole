@@ -27,5 +27,4 @@ Log.Logger = new LoggerConfiguration().WriteTo.FastConsole(config).CreateLogger(
 
 Name | Default | Description
 ---- | ------- | -----------
-`UseJson` | true | Whether to write as a plaintext line (using any configured output format) or as a JSON object with `{ timestamp, level, message, properties }` structure.
-`CustomJsonWriter` | null | `Action<LogEvent, TextWriter>` delegate for any custom method to write JSON (if JSON output is enabled).
+`UseJson` | true | Whether to write as a plaintext line or as a JSON object with `{ timestamp, level, message, properties }` structure. Provide an `ITextFormatter` implementation insteadif you want to customize the output completely.  
