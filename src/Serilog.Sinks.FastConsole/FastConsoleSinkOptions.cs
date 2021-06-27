@@ -18,10 +18,7 @@ namespace Serilog.Sinks.FastConsole
         /// </summary>
         public bool UseJson { get; set; } = true;
 
-        /// <summary>
-        /// Custom write method for controlling the JSON object output. You must write the entire object.
-        /// Default is null, which will use built-in formatter.
-        /// </summary>
+        [Obsolete("Use a class that implements ITextFormatter instead. This is the official way to override the text output for Serilog. This method is still supported (using a wrapper class) but will be removed in a future release.")]
         public Action<LogEvent, TextWriter>? CustomJsonWriter { get; set; }
     }
 }

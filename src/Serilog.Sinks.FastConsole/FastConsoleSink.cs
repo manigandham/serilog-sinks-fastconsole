@@ -4,7 +4,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Serilog.Core;
 using Serilog.Events;
-using Serilog.Formatting.Display;
+using Serilog.Formatting;
 using Serilog.Formatting.Json;
 
 namespace Serilog.Sinks.FastConsole
@@ -17,17 +17,22 @@ namespace Serilog.Sinks.FastConsole
         private readonly Task _writeQueueWorker;
 
         private readonly FastConsoleSinkOptions _options;
-        private readonly MessageTemplateTextFormatter? _messageTemplateTextFormatter;
+        private readonly ITextFormatter? _textFormatter;
         private readonly JsonValueFormatter _valueFormatter = new();
 
-        public FastConsoleSink(FastConsoleSinkOptions options, MessageTemplateTextFormatter? messageTemplateTextFormatter)
+        public FastConsoleSink(FastConsoleSinkOptions options, ITextFormatter? textFormatter)
         {
             _options = options;
-            _messageTemplateTextFormatter = messageTemplateTextFormatter;
+            _textFormatter = textFormatter;
+
+            // support obsolete CustomJsonWriter
+            if (_textFormatter == null && options.CustomJsonWriter != null)
+                _textFormatter = new ObsoleteJsonWriter(options.CustomJsonWriter);
 
             _writeQueue = options.QueueLimit > 0
-                ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true })
-                : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
+                ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value)
+                    {SingleReader = true})
+                : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions {SingleReader = true});
 
             _writeQueueWorker = Task.Run(WriteToConsoleStream);
         }
@@ -49,7 +54,9 @@ namespace Serilog.Sinks.FastConsole
                 // format and write event to in-memory buffer and then flush to console async
                 // do not use the locking textwriter from console.out used by console.writeline
 
-                if (_options.UseJson)
+                if (_textFormatter != null)
+                    _textFormatter.Format(logEvent, _bufferWriter);
+                else if (_options.UseJson)
                     RenderJson(logEvent, _bufferWriter);
                 else
                     RenderText(logEvent, _bufferWriter);
@@ -71,65 +78,51 @@ namespace Serilog.Sinks.FastConsole
 
         private void RenderText(LogEvent e, StringWriter writer)
         {
-            if (_messageTemplateTextFormatter != null)
-            {
-                _messageTemplateTextFormatter.Format(e, writer);
-            }
-            else
-            {
-                writer.Write(e.MessageTemplate.Render(e.Properties));
-                writer.WriteLine();
-            }
+            writer.Write(e.MessageTemplate.Render(e.Properties));
+            writer.WriteLine();
         }
 
         private void RenderJson(LogEvent e, StringWriter writer)
         {
-            if (_options.CustomJsonWriter != null)
+            writer.Write("{");
+
+            writer.Write("\"timestamp\":\"");
+            writer.Write(e.Timestamp.ToString("o"));
+
+            writer.Write("\",\"level\":\"");
+            writer.Write(WriteLogLevel(e.Level));
+
+            writer.Write("\",\"message\":");
+            var message = e.MessageTemplate.Render(e.Properties);
+            JsonValueFormatter.WriteQuotedJsonString(message, writer);
+
+            if (e.Exception != null)
             {
-                _options.CustomJsonWriter(e, writer);
+                writer.Write(",\"exception\":");
+                JsonValueFormatter.WriteQuotedJsonString(e.Exception.ToString(), writer);
             }
-            else
+
+            if (e.Properties.Count > 0)
             {
-                writer.Write("{");
+                writer.Write(",\"properties\":{");
 
-                writer.Write("\"timestamp\":\"");
-                writer.Write(e.Timestamp.ToString("o"));
-
-                writer.Write("\",\"level\":\"");
-                writer.Write(WriteLogLevel(e.Level));
-
-                writer.Write("\",\"message\":");
-                var message = e.MessageTemplate.Render(e.Properties);
-                JsonValueFormatter.WriteQuotedJsonString(message, writer);
-
-                if (e.Exception != null)
+                var precedingDelimiter = "";
+                foreach (var kvp in e.Properties)
                 {
-                    writer.Write(",\"exception\":");
-                    JsonValueFormatter.WriteQuotedJsonString(e.Exception.ToString(), writer);
-                }
+                    writer.Write(precedingDelimiter);
+                    precedingDelimiter = ",";
 
-                if (e.Properties.Count > 0)
-                {
-                    writer.Write(",\"properties\":{");
+                    JsonValueFormatter.WriteQuotedJsonString(kvp.Key, writer);
+                    writer.Write(':');
 
-                    var precedingDelimiter = "";
-                    foreach (var kvp in e.Properties)
-                    {
-                        writer.Write(precedingDelimiter);
-                        precedingDelimiter = ",";
-
-                        JsonValueFormatter.WriteQuotedJsonString(kvp.Key, writer);
-                        writer.Write(':');
-
-                        _valueFormatter.Format(kvp.Value, writer);
-                    }
-
-                    writer.Write('}');
+                    _valueFormatter.Format(kvp.Value, writer);
                 }
 
                 writer.Write('}');
-                writer.WriteLine();
             }
+
+            writer.Write('}');
+            writer.WriteLine();
         }
 
         private static string WriteLogLevel(LogEventLevel level) => level switch
@@ -166,6 +159,18 @@ namespace Serilog.Sinks.FastConsole
             }
 
             _disposed = true;
+        }
+
+        private class ObsoleteJsonWriter : ITextFormatter
+        {
+            private readonly Action<LogEvent, TextWriter>? _method;
+
+            public ObsoleteJsonWriter(Action<LogEvent, TextWriter>? method)
+            {
+                _method = method;
+            }
+
+            public void Format(LogEvent e, TextWriter w) => _method?.Invoke(e, w);
         }
 
         #endregion
