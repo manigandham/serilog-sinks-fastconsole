@@ -61,7 +61,7 @@ namespace Serilog.Sinks.FastConsole
                 else
                     RenderText(logEvent, _bufferWriter);
 
-#if NET5_0
+#if NET5_0_OR_GREATER
                 // use stringbuilder internal buffers directly without allocating a new string
                 foreach (var chunk in sb.GetChunks())
                     await _consoleWriter.WriteAsync(chunk).ConfigureAwait(false);

@@ -4,7 +4,7 @@ Serilog sink that writes to console with high-performance non-blocking output. S
 
 This sink uses a [background channel](https://ndportmann.com/system-threading-channels/) with a single text buffer and async writes to remove all blocking and lock contention to the console output stream. It also implements `IDiposable` so that calling `Log.CloseAndFlush()` will ensure all lines are flushed. Recommended for high-volume logging where console logging is captured and sent elsewhere, for example this library was originally created for a large fleet of API servers running in Kubernetes and logging hundreds of large JSON objects every second.   
 
-Built for `netstandard2.0`, `netstandard2.1`, `net5.0`
+Built for `net6.0`, `net5.0`, `netstandard2.1`, `netstandard2.0`
 
 Release notes here: [CHANGELOG.md](CHANGELOG.md)
 
