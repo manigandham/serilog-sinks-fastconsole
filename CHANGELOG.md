@@ -2,6 +2,9 @@
 
 Full readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
 
+## 1.6.0
+- Added `net6.0` target framework.
+
 ## 1.5.0
 - Sink updated to use `ITextFormatter` for any custom formatting, in addition to basic plaintext and JSON formatting included by default.
 - `CustomJsonWriter` (of type `Action<LogEvent, TextWriter>`) is now obsolete. Provide an implementation of `ITextFormatter` instead.
