@@ -2,6 +2,10 @@
 
 Full readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
 
+## 2.0.0
+- Removed obsolete `CustomJsonWriter` handling.
+- Added `textFormatter` to extension method for Serilog config.
+
 ## 1.6.0
 - Added `net6.0` target framework.
 
