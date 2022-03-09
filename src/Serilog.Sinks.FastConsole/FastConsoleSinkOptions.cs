@@ -1,8 +1,4 @@
-﻿using System;
-using System.IO;
-using Serilog.Events;
-
-namespace Serilog.Sinks.FastConsole
+﻿namespace Serilog.Sinks.FastConsole
 {
     public class FastConsoleSinkOptions
     {
@@ -17,8 +13,5 @@ namespace Serilog.Sinks.FastConsole
         /// Default is true.
         /// </summary>
         public bool UseJson { get; set; } = true;
-
-        [Obsolete("Use a class that implements ITextFormatter instead. This is the official way to override the text output for Serilog. This method is still supported (using a wrapper class) but will be removed in a future release.")]
-        public Action<LogEvent, TextWriter>? CustomJsonWriter { get; set; }
     }
 }

@@ -25,10 +25,6 @@ namespace Serilog.Sinks.FastConsole
             _options = options;
             _textFormatter = textFormatter;
 
-            // support obsolete CustomJsonWriter
-            if (_textFormatter == null && options.CustomJsonWriter != null)
-                _textFormatter = new ObsoleteJsonWriter(options.CustomJsonWriter);
-
             _writeQueue = options.QueueLimit > 0
                 ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value)
                     {SingleReader = true})
@@ -159,18 +155,6 @@ namespace Serilog.Sinks.FastConsole
             }
 
             _disposed = true;
-        }
-
-        private class ObsoleteJsonWriter : ITextFormatter
-        {
-            private readonly Action<LogEvent, TextWriter>? _method;
-
-            public ObsoleteJsonWriter(Action<LogEvent, TextWriter>? method)
-            {
-                _method = method;
-            }
-
-            public void Format(LogEvent e, TextWriter w) => _method?.Invoke(e, w);
         }
 
         #endregion
