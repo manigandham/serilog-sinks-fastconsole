@@ -134,7 +134,7 @@ namespace Serilog.Sinks.FastConsole
 
         #region IDisposable Support
 
-        private bool _disposed = false; // to detect redundant calls
+        private bool _disposed; // to detect redundant calls
 
         public void Dispose() => Dispose(true);
 
@@ -145,9 +145,12 @@ namespace Serilog.Sinks.FastConsole
 
             if (disposing)
             {
-                // close write queue and wait until items are drained
-                // then wait for all console output to be flushed
-                _writeQueue.Writer.Complete();
+                // Close write queue and wait until items are drained
+                // then wait for all console output to be flushed.
+                // Use TryComplete instead of Complete because Complete throws
+                // System.Threading.Channels.ChannelClosedException: 'The channel has been closed.'
+                // in case of concurrent Dispose calls.
+                _writeQueue.Writer.TryComplete(null);
                 _writeQueueWorker.GetAwaiter().GetResult();
 
                 _bufferWriter.Dispose();

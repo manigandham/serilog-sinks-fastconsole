@@ -20,7 +20,7 @@ namespace Serilog.Sinks.FastConsole
             sinkOptions ??= new FastConsoleSinkOptions();
 
             // create text formatter if only output template is specified
-            if (!String.IsNullOrWhiteSpace(outputTemplate) && textFormatter == null)
+            if (!string.IsNullOrWhiteSpace(outputTemplate) && textFormatter == null)
                 textFormatter = new MessageTemplateTextFormatter(outputTemplate);
 
             var sink = new FastConsoleSink(sinkOptions, textFormatter);
