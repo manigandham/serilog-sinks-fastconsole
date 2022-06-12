@@ -1,6 +1,11 @@
 # Changelog
 
-Full readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
+Readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
+
+## 2.1.0
+
+-   Fixed potential bug with channel close during repeated dispose.
+-   Updated nuget references.
 
 ## 2.0.0
 

@@ -7,41 +7,40 @@ using Serilog.Events;
 using Serilog.Formatting;
 using Serilog.Formatting.Json;
 
-namespace Serilog.Sinks.FastConsole
+namespace Serilog.Sinks.FastConsole;
+
+public class FastConsoleSink : ILogEventSink, IDisposable
 {
-    public class FastConsoleSink : ILogEventSink, IDisposable
+    private readonly StreamWriter _consoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
+    private readonly StringWriter _bufferWriter = new();
+    private readonly Channel<LogEvent?> _writeQueue;
+    private readonly Task _writeQueueWorker;
+
+    private readonly FastConsoleSinkOptions _options;
+    private readonly ITextFormatter? _textFormatter;
+    private readonly JsonValueFormatter _valueFormatter = new();
+
+    public FastConsoleSink(FastConsoleSinkOptions options, ITextFormatter? textFormatter)
     {
-        private readonly StreamWriter _consoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
-        private readonly StringWriter _bufferWriter = new();
-        private readonly Channel<LogEvent?> _writeQueue;
-        private readonly Task _writeQueueWorker;
+        _options = options;
+        _textFormatter = textFormatter;
 
-        private readonly FastConsoleSinkOptions _options;
-        private readonly ITextFormatter? _textFormatter;
-        private readonly JsonValueFormatter _valueFormatter = new();
+        _writeQueue = options.QueueLimit > 0
+            ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true })
+            : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
 
-        public FastConsoleSink(FastConsoleSinkOptions options, ITextFormatter? textFormatter)
-        {
-            _options = options;
-            _textFormatter = textFormatter;
+        _writeQueueWorker = Task.Run(WriteToConsoleStream);
+    }
 
-            _writeQueue = options.QueueLimit > 0
-                ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value)
-                    {SingleReader = true})
-                : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions {SingleReader = true});
+    // logs are immediately queued to channel
+    public void Emit(LogEvent logEvent) => _writeQueue.Writer.TryWrite(logEvent);
 
-            _writeQueueWorker = Task.Run(WriteToConsoleStream);
-        }
+    private async Task WriteToConsoleStream()
+    {
+        // cache reference to stringbuilder inside writer
+        var sb = _bufferWriter.GetStringBuilder();
 
-        // logs are immediately queued to channel
-        public void Emit(LogEvent logEvent) => _writeQueue.Writer.TryWrite(logEvent);
-
-        private async Task WriteToConsoleStream()
-        {
-            // cache reference to stringbuilder inside writer
-            var sb = _bufferWriter.GetStringBuilder();
-
-            while (await _writeQueue.Reader.WaitToReadAsync().ConfigureAwait(false))
+        while (await _writeQueue.Reader.WaitToReadAsync().ConfigureAwait(false))
             while (_writeQueue.Reader.TryRead(out var logEvent))
             {
                 if (logEvent == null) continue;
@@ -50,12 +49,9 @@ namespace Serilog.Sinks.FastConsole
                 // format and write event to in-memory buffer and then flush to console async
                 // do not use the locking textwriter from console.out used by console.writeline
 
-                if (_textFormatter != null)
-                    _textFormatter.Format(logEvent, _bufferWriter);
-                else if (_options.UseJson)
-                    RenderJson(logEvent, _bufferWriter);
-                else
-                    RenderText(logEvent, _bufferWriter);
+                if (_textFormatter != null) _textFormatter.Format(logEvent, _bufferWriter);
+                else if (_options.UseJson) RenderJson(logEvent, _bufferWriter);
+                else RenderText(logEvent, _bufferWriter);
 
 #if NET5_0_OR_GREATER
                 // use stringbuilder internal buffers directly without allocating a new string
@@ -69,97 +65,96 @@ namespace Serilog.Sinks.FastConsole
                 sb.Clear();
             }
 
-            await _consoleWriter.FlushAsync().ConfigureAwait(false);
+        await _consoleWriter.FlushAsync().ConfigureAwait(false);
+    }
+
+    private void RenderText(LogEvent e, StringWriter writer)
+    {
+        writer.Write(e.MessageTemplate.Render(e.Properties));
+        writer.WriteLine();
+    }
+
+    private void RenderJson(LogEvent e, StringWriter writer)
+    {
+        writer.Write("{");
+
+        writer.Write("\"timestamp\":\"");
+        writer.Write(e.Timestamp.ToString("o"));
+
+        writer.Write("\",\"level\":\"");
+        writer.Write(WriteLogLevel(e.Level));
+
+        writer.Write("\",\"message\":");
+        var message = e.MessageTemplate.Render(e.Properties);
+        JsonValueFormatter.WriteQuotedJsonString(message, writer);
+
+        if (e.Exception != null)
+        {
+            writer.Write(",\"exception\":");
+            JsonValueFormatter.WriteQuotedJsonString(e.Exception.ToString(), writer);
         }
 
-        private void RenderText(LogEvent e, StringWriter writer)
+        if (e.Properties.Count > 0)
         {
-            writer.Write(e.MessageTemplate.Render(e.Properties));
-            writer.WriteLine();
-        }
+            writer.Write(",\"properties\":{");
 
-        private void RenderJson(LogEvent e, StringWriter writer)
-        {
-            writer.Write("{");
-
-            writer.Write("\"timestamp\":\"");
-            writer.Write(e.Timestamp.ToString("o"));
-
-            writer.Write("\",\"level\":\"");
-            writer.Write(WriteLogLevel(e.Level));
-
-            writer.Write("\",\"message\":");
-            var message = e.MessageTemplate.Render(e.Properties);
-            JsonValueFormatter.WriteQuotedJsonString(message, writer);
-
-            if (e.Exception != null)
+            var precedingDelimiter = "";
+            foreach (var kvp in e.Properties)
             {
-                writer.Write(",\"exception\":");
-                JsonValueFormatter.WriteQuotedJsonString(e.Exception.ToString(), writer);
-            }
+                writer.Write(precedingDelimiter);
+                precedingDelimiter = ",";
 
-            if (e.Properties.Count > 0)
-            {
-                writer.Write(",\"properties\":{");
+                JsonValueFormatter.WriteQuotedJsonString(kvp.Key, writer);
+                writer.Write(':');
 
-                var precedingDelimiter = "";
-                foreach (var kvp in e.Properties)
-                {
-                    writer.Write(precedingDelimiter);
-                    precedingDelimiter = ",";
-
-                    JsonValueFormatter.WriteQuotedJsonString(kvp.Key, writer);
-                    writer.Write(':');
-
-                    _valueFormatter.Format(kvp.Value, writer);
-                }
-
-                writer.Write('}');
+                _valueFormatter.Format(kvp.Value, writer);
             }
 
             writer.Write('}');
-            writer.WriteLine();
         }
 
-        private static string WriteLogLevel(LogEventLevel level) => level switch
-        {
-            LogEventLevel.Verbose => "VERBOSE",
-            LogEventLevel.Debug => "DEBUG",
-            LogEventLevel.Information => "INFO",
-            LogEventLevel.Warning => "WARNING",
-            LogEventLevel.Error => "ERROR",
-            LogEventLevel.Fatal => "FATAL",
-            _ => "INFO",
-        };
-
-        #region IDisposable Support
-
-        private bool _disposed; // to detect redundant calls
-
-        public void Dispose() => Dispose(true);
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_disposed)
-                return;
-
-            if (disposing)
-            {
-                // Close write queue and wait until items are drained
-                // then wait for all console output to be flushed.
-                // Use TryComplete instead of Complete because Complete throws
-                // System.Threading.Channels.ChannelClosedException: 'The channel has been closed.'
-                // in case of concurrent Dispose calls.
-                _writeQueue.Writer.TryComplete(null);
-                _writeQueueWorker.GetAwaiter().GetResult();
-
-                _bufferWriter.Dispose();
-                _consoleWriter.Dispose();
-            }
-
-            _disposed = true;
-        }
-
-        #endregion
+        writer.Write('}');
+        writer.WriteLine();
     }
+
+    private static string WriteLogLevel(LogEventLevel level) => level switch
+    {
+        LogEventLevel.Verbose => "VERBOSE",
+        LogEventLevel.Debug => "DEBUG",
+        LogEventLevel.Information => "INFO",
+        LogEventLevel.Warning => "WARNING",
+        LogEventLevel.Error => "ERROR",
+        LogEventLevel.Fatal => "FATAL",
+        _ => "INFO",
+    };
+
+    #region IDisposable Support
+
+    private bool _disposed; // to detect redundant calls
+
+    public void Dispose() => Dispose(true);
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+            return;
+
+        if (disposing)
+        {
+            // Close write queue and wait until items are drained
+            // then wait for all console output to be flushed.
+            // Use TryComplete instead of Complete because Complete throws
+            // System.Threading.Channels.ChannelClosedException: 'The channel has been closed.'
+            // in case of concurrent Dispose calls.
+            _writeQueue.Writer.TryComplete(null);
+            _writeQueueWorker.GetAwaiter().GetResult();
+
+            _bufferWriter.Dispose();
+            _consoleWriter.Dispose();
+        }
+
+        _disposed = true;
+    }
+
+    #endregion
 }
