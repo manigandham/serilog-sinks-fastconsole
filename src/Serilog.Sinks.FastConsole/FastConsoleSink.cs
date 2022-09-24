@@ -19,21 +19,27 @@ public class FastConsoleSink : ILogEventSink, IDisposable
     private readonly FastConsoleSinkOptions _options;
     private readonly ITextFormatter? _textFormatter;
     private readonly JsonValueFormatter _valueFormatter = new();
+    private readonly bool _bounded;
 
     public FastConsoleSink(FastConsoleSinkOptions options, ITextFormatter? textFormatter)
     {
         _options = options;
         _textFormatter = textFormatter;
+        _bounded = options.QueueLimit > 0;
 
-        _writeQueue = options.QueueLimit > 0
-            ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit.Value) { SingleReader = true })
+        _writeQueue = _bounded
+            ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit!.Value) { SingleReader = true })
             : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
 
         _writeQueueWorker = Task.Run(WriteToConsoleStream);
     }
 
     // logs are immediately queued to channel
-    public void Emit(LogEvent logEvent) => _writeQueue.Writer.TryWrite(logEvent);
+    public void Emit(LogEvent logEvent)
+    {
+        if (!_writeQueue.Writer.TryWrite(logEvent) && _bounded && _options.BlockWhenFull)
+            _writeQueue.Writer.WriteAsync(logEvent).AsTask().GetAwaiter().GetResult();
+    }
 
     private async Task WriteToConsoleStream()
     {
@@ -68,7 +74,7 @@ public class FastConsoleSink : ILogEventSink, IDisposable
         await _consoleWriter.FlushAsync().ConfigureAwait(false);
     }
 
-    private void RenderText(LogEvent e, StringWriter writer)
+    private static void RenderText(LogEvent e, StringWriter writer)
     {
         writer.Write(e.MessageTemplate.Render(e.Properties));
         writer.WriteLine();
