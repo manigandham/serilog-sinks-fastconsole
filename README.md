@@ -26,7 +26,8 @@ Log.Logger = new LoggerConfiguration().WriteTo.FastConsole(config).CreateLogger(
 
 ## Sink Options
 
-| Name         | Default | Description                                                                                                                                                                                    |
-| ------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UseJson`    | true    | Enable to write log events as a JSON object with `{ timestamp, level, message, properties }` structure. Provide an `ITextFormatter` implementation instead to customize the output completely. |
-| `QueueLimit` | null    | Set max limit for the number of log entries queued in memory. Used to provide backpressure and avoid out-of-memory issues for high-volume logging.                                             |
+| Name            | Default | Description                                                                                                                                                                                    |
+| --------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UseJson`       | true    | Enable to write log events as a JSON object with `{ timestamp, level, message, properties }` structure. Provide an `ITextFormatter` implementation instead to customize the output completely. |
+| `QueueLimit`    | null    | Set max limit for the number of log entries queued in memory. Used to provide backpressure and avoid out-of-memory issues for high-volume logging.                                             |
+| `BlockWhenFull` | false   | Sets the behavior of sink when queue of messages is full. Set to true to block instead of losing log entries. Requires `QueueLimit` to be set.                                                 |

@@ -2,6 +2,10 @@
 
 Readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
 
+## 2.2.0
+
+-   Added `BlockWhenFull` option to block when in-memory queue is full instead of dropping new log entries.
+
 ## 2.1.0
 
 -   Fixed potential bug with channel close during repeated dispose.
