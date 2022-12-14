@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Serilog.Core;
@@ -13,8 +14,8 @@ public class FastConsoleSink : ILogEventSink, IDisposable
 {
     private readonly StreamWriter _consoleWriter = new(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
     private readonly StringWriter _bufferWriter = new();
-    private readonly Channel<LogEvent?> _writeQueue;
-    private readonly Task _writeQueueWorker;
+    private readonly Channel<LogEvent?> _queue;
+    private readonly Task _worker;
 
     private readonly FastConsoleSinkOptions _options;
     private readonly ITextFormatter? _textFormatter;
@@ -27,49 +28,53 @@ public class FastConsoleSink : ILogEventSink, IDisposable
         _textFormatter = textFormatter;
         _bounded = options.QueueLimit > 0;
 
-        _writeQueue = _bounded
+        _queue = _bounded
             ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit!.Value) { SingleReader = true })
             : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
 
-        _writeQueueWorker = Task.Run(WriteToConsoleStream);
+        _worker = Task.Factory.StartNew(WriteToConsoleStream, CancellationToken.None, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
     }
 
     // logs are immediately queued to channel
     public void Emit(LogEvent logEvent)
     {
-        if (!_writeQueue.Writer.TryWrite(logEvent) && _bounded && _options.BlockWhenFull)
-            _writeQueue.Writer.WriteAsync(logEvent).AsTask().GetAwaiter().GetResult();
+        if (!_queue.Writer.TryWrite(logEvent) && _bounded && _options.BlockWhenFull)
+            Task.Run(() => _queue.Writer.WriteAsync(logEvent)).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
     private async Task WriteToConsoleStream()
     {
         // cache reference to stringbuilder inside writer
+        // console output is an IO stream
+        // format and write event to in-memory buffer and then flush to console async   
+        // do not use the locking textwriter from console.out used by console.writeline
+
         var sb = _bufferWriter.GetStringBuilder();
 
-        while (await _writeQueue.Reader.WaitToReadAsync().ConfigureAwait(false))
-            while (_writeQueue.Reader.TryRead(out var logEvent))
-            {
-                if (logEvent == null) continue;
-
-                // console output is an IO stream
-                // format and write event to in-memory buffer and then flush to console async
-                // do not use the locking textwriter from console.out used by console.writeline
-
-                if (_textFormatter != null) _textFormatter.Format(logEvent, _bufferWriter);
-                else if (_options.UseJson) RenderJson(logEvent, _bufferWriter);
-                else RenderText(logEvent, _bufferWriter);
+#if NET5_0_OR_GREATER
+        await foreach (var logEvent in _queue.Reader.ReadAllAsync().ConfigureAwait(false))
+#else
+        while (await _queue.Reader.WaitToReadAsync().ConfigureAwait(false))
+        while (_queue.Reader.TryRead(out var logEvent))
+#endif
+        {
+            if (logEvent == null) continue;
+            if (_textFormatter != null) _textFormatter.Format(logEvent, _bufferWriter);
+            else if (_options.UseJson) RenderJson(logEvent, _bufferWriter);
+            else RenderText(logEvent, _bufferWriter);
 
 #if NET5_0_OR_GREATER
-                // use stringbuilder internal buffers directly without allocating a new string
-                foreach (var chunk in sb.GetChunks())
-                    await _consoleWriter.WriteAsync(chunk).ConfigureAwait(false);
+            // use stringbuilder internal buffers directly without allocating a new string
+            foreach (var chunk in sb.GetChunks())
+                await _consoleWriter.WriteAsync(chunk).ConfigureAwait(false);
 #else
-                // fallback to creating string output
-                await _consoleWriter.WriteAsync(sb.ToString()).ConfigureAwait(false);
+            // fallback to creating string output
+            await _consoleWriter.WriteAsync(sb.ToString()).ConfigureAwait(false);
 #endif
 
-                sb.Clear();
-            }
+            // must clear buffer manually
+            sb.Clear();
+        }
 
         await _consoleWriter.FlushAsync().ConfigureAwait(false);
     }
@@ -152,8 +157,8 @@ public class FastConsoleSink : ILogEventSink, IDisposable
             // Use TryComplete instead of Complete because Complete throws
             // System.Threading.Channels.ChannelClosedException: 'The channel has been closed.'
             // in case of concurrent Dispose calls.
-            _writeQueue.Writer.TryComplete(null);
-            _writeQueueWorker.GetAwaiter().GetResult();
+            _queue.Writer.TryComplete(null);
+            _worker.GetAwaiter().GetResult();
 
             _bufferWriter.Dispose();
             _consoleWriter.Dispose();

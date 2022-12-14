@@ -19,8 +19,8 @@ public static class FastConsoleSinkExtensions
         sinkOptions ??= new FastConsoleSinkOptions();
 
         // create text formatter if only output template is specified
-        if (!string.IsNullOrWhiteSpace(outputTemplate) && textFormatter == null)
-            textFormatter = new MessageTemplateTextFormatter(outputTemplate);
+        if (textFormatter == null && !string.IsNullOrWhiteSpace(outputTemplate))
+            textFormatter = new MessageTemplateTextFormatter(outputTemplate!);
 
         var sink = new FastConsoleSink(sinkOptions, textFormatter);
 
