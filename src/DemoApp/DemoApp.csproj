@@ -6,8 +6,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Serilog.AspNetCore" Version="5.0.0" />
-      <PackageReference Include="System.Threading.Channels" Version="6.0.0" />
+      <PackageReference Include="Serilog.AspNetCore" Version="6.1.0" />
+      <PackageReference Include="System.Threading.Channels" Version="7.0.0" />
     </ItemGroup>
 
     <ItemGroup>
