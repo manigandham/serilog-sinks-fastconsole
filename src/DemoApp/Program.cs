@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -18,11 +19,13 @@ Log.Information("Starting up");
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var logsCount = 5000;
+    var sinkOptions = new FastConsoleSinkOptions { /*QueueLimit = 10, BlockWhenFull = true*/ };
 
+    var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog((ctx, lc) =>
     {
-        lc.MinimumLevel.Debug().Enrich.FromLogContext().WriteTo.FastConsole();
+        lc.MinimumLevel.Debug().Enrich.FromLogContext().WriteTo.FastConsole(sinkOptions);
         //.WriteTo.File("log.txt", shared: true, restrictedToMinimumLevel: LogEventLevel.Debug)
         //.WriteTo.Console()
     });
@@ -32,9 +35,16 @@ try
 
     app.MapGet("/", async ([FromServices] Microsoft.Extensions.Logging.ILogger<Program> _logger) =>
     {
-        var tasks = Enumerable.Range(1, 3000).Select(t => Task.Run(() => _logger.LogInformation(CreateRandomString(100)))).ToArray();
+        var sw = Stopwatch.StartNew();
+        var tasks = Enumerable.Range(1, logsCount).Select(t => Task.Run(() => _logger.LogInformation(CreateRandomString(100))));
         await Task.WhenAll(tasks);
-        return "Logging random messages to console";
+
+        return $"Logging random messages to console" +
+        $"\n logs: {logsCount}" +
+        $"\n queue limit: {sinkOptions.QueueLimit}" +
+        $"\n queue block: {sinkOptions.BlockWhenFull}" +
+        $"\n milliseconds: {sw.ElapsedMilliseconds}" +
+        $"\n threads: {Process.GetCurrentProcess().Threads.Count}";
     });
 
     app.Run();
