@@ -2,6 +2,12 @@
 
 Readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
 
+## 2.3.0
+
+-   Refactored code for more efficient console output and thread blocking when queue is full. Use `IAsyncEnumerable` when available in runtime.
+-   Refactored DemoApp to simply code and display results of sample logging.
+-   Dropped `net5.0` target framework.
+
 ## 2.2.0
 
 -   Added `BlockWhenFull` option to block when in-memory queue is full instead of dropping new log entries.
