@@ -31,8 +31,7 @@ public class FastConsoleSink : ILogEventSink, IDisposable
             ? Channel.CreateBounded<LogEvent?>(new BoundedChannelOptions(options.QueueLimit!.Value) { SingleReader = true, FullMode = _options.BlockWhenFull ? BoundedChannelFullMode.Wait : BoundedChannelFullMode.DropWrite })
             : Channel.CreateUnbounded<LogEvent?>(new UnboundedChannelOptions { SingleReader = true });
 
-        // Use Task.Run instead of Task.Factory.StartNew since it unwraps Task<Task> into the just Task.
-        _worker = Task.Run(WriteToConsoleStream, CancellationToken.None);
+        _worker = Task.Factory.StartNew(WriteToConsoleStream, CancellationToken.None, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach, TaskScheduler.Default).Unwrap();
     }
 
     public void Emit(LogEvent logEvent)
