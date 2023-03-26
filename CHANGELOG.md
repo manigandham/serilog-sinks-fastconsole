@@ -2,10 +2,15 @@
 
 Readme: https://github.com/manigandham/serilog-sinks-fastconsole/blob/master/README.md
 
+## 2.4.0
+
+-   Fixed bug in waiting for underlying task on dispose.
+-   Added `net7.0` target framework.
+
 ## 2.3.0
 
 -   Refactored code for more efficient console output and thread blocking when queue is full. Use `IAsyncEnumerable` when available in runtime.
--   Refactored DemoApp to simply code and display results of sample logging.
+-   Refactored DemoApp to simplify code and display results of sample logging.
 -   Dropped `net5.0` target framework.
 
 ## 2.2.0
